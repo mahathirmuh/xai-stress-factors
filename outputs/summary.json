@@ -20,9 +20,9 @@
     "chronotype": 0.0464,
     "heart_rate_resting_bpm": 0.0445
   },
-  "individual_cases": [
-    "high_stress",
-    "low_stress",
-    "borderline"
-  ]
+  "individual_cases": {
+    "high_stress": 2731,
+    "low_stress": 1149,
+    "borderline": 3816
+  }
 }
