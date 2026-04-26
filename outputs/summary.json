@@ -1,0 +1,28 @@
+{
+  "best_model": "CatBoost",
+  "test_metrics": {
+    "R2": 0.6456320383867951,
+    "RMSE": 0.9639067532957202,
+    "MAE": 0.7698876138075572
+  },
+  "cv_r2_mean": 0.6414323225489396,
+  "cv_r2_std": 0.006239949291930837,
+  "shap_stability_kendall_tau": 0.8962962962962964,
+  "top10_features": {
+    "sleep_quality_score": 0.6542,
+    "occupation": 0.5606,
+    "sleep_duration_hrs": 0.1295,
+    "room_temperature_celsius": 0.0828,
+    "day_type": 0.0758,
+    "wake_episodes_per_night": 0.0755,
+    "deep_sleep_percentage": 0.0548,
+    "alcohol_units_before_bed": 0.0483,
+    "chronotype": 0.0464,
+    "heart_rate_resting_bpm": 0.0445
+  },
+  "individual_cases": [
+    "high_stress",
+    "low_stress",
+    "borderline"
+  ]
+}

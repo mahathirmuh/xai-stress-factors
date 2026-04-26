@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pkl
+catboost_info/
+.venv/
+venv/
+.env
+.idea/
+.vscode/
+.DS_Store
