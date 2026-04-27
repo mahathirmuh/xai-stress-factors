@@ -81,7 +81,7 @@ pip install -r requirements.txt
 python xai_stress_analysis.py
 ```
 
-Pipeline akan menjalankan seluruh Phase 1-6 secara berurutan dan menghasilkan output di folder `outputs/`. Estimasi waktu: ~5-10 menit (CatBoost + Random Forest + SHAP).
+Pipeline akan menjalankan seluruh Phase 1-6 secara berurutan dan menghasilkan output di folder `outputs/`. Estimasi waktu: **~25-35 menit** (CatBoost ~2 menit, RF SHAP 500 sampel ~9 menit, Phase 5-6 ~5 menit).
 
 ### 3. Lihat Hasil
 
@@ -169,7 +169,7 @@ kkk1v4/
 | 2b | SHAP additivity (RF) | max diff = 0.000000 | ✅ PASS |
 | 3 | R² ≥ 0.6 threshold | 0.6456 | ✅ PASS |
 | 4 | Cross-Model Stability (Skenario 4) | Kendall's Tau = 0.544, top-10 overlap 7/10 | ⚠️ MARGINAL |
-| 5 | 13 output visuals exist | 13/13 | ✅ PASS |
+| 5 | 14 output visuals exist | 14/14 | ✅ PASS |
 
 ---
 
