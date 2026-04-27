@@ -7,8 +7,23 @@
   },
   "cv_r2_mean": 0.6414323225489396,
   "cv_r2_std": 0.006239949291930837,
-  "shap_stability_kendall_tau": 0.8962962962962964,
-  "top10_features": {
+  "shap_stability_within_catboost_kendall_tau": 0.8962962962962964,
+  "cross_model_stability": {
+    "kendall_tau": 0.5441595441595443,
+    "p_value": 3.129815489947416e-05,
+    "top10_overlap": 7,
+    "common_top10": [
+      "deep_sleep_percentage",
+      "heart_rate_resting_bpm",
+      "occupation",
+      "room_temperature_celsius",
+      "sleep_duration_hrs",
+      "sleep_quality_score",
+      "wake_episodes_per_night"
+    ],
+    "status": "MARGINAL"
+  },
+  "top10_features_catboost": {
     "sleep_quality_score": 0.6542,
     "occupation": 0.5606,
     "sleep_duration_hrs": 0.1295,
@@ -19,6 +34,18 @@
     "alcohol_units_before_bed": 0.0483,
     "chronotype": 0.0464,
     "heart_rate_resting_bpm": 0.0445
+  },
+  "top10_features_rf": {
+    "sleep_quality_score": 0.6878,
+    "occupation": 0.4393,
+    "work_hours_that_day": 0.1963,
+    "sleep_duration_hrs": 0.071,
+    "room_temperature_celsius": 0.0327,
+    "deep_sleep_percentage": 0.0317,
+    "wake_episodes_per_night": 0.0301,
+    "heart_rate_resting_bpm": 0.0281,
+    "bmi": 0.022,
+    "mental_health_condition": 0.0206
   },
   "individual_cases": {
     "high_stress": 2731,

@@ -7,14 +7,16 @@
 
 ## 📊 Progress Tracker
 
-**Overall:** 6/6 phases selesai (100%) · **Mulai:** 2026-04-26 · **Selesai:** 2026-04-26
+**Overall:** 6/6 phases selesai (100%) · **Mulai:** 2026-04-26 · **Selesai:** 2026-04-27
 
 | Phase | Status | Progress |
 | --- | --- | --- |
 | Phase 1 — Setup & EDA | ✅ Selesai | 5/5 |
 | Phase 2 — Preprocessing | ✅ Selesai | 4/4 |
-| Phase 3 — Model Training | ✅ Selesai | 5/5 |
-| Phase 4 — Global SHAP | ✅ Selesai | 5/5 |
+| Phase 3 — Model Training (Modular) | ✅ Selesai | 5/5 |
+| Phase 4a — Global SHAP (CatBoost) | ✅ Selesai | 5/5 |
+| Phase 4b — Global SHAP (Random Forest) | ✅ Selesai *(BARU)* | 3/3 |
+| Phase 4c — Cross-Model Stability | ⚠️ Marginal *(BARU)* | 3/3 |
 | Phase 5 — Individual SHAP | ✅ Selesai | 4/4 |
 | Phase 6 — Final Report | ✅ Selesai | 3/3 |
 
@@ -380,7 +382,22 @@ TARGET = 'stress_score'
 
 ---
 
-### Phase 3 — Global Modeling  ✅ Selesai
+### Phase 3 — Global Modeling  ✅ Selesai (Refactored Modular)
+
+#### Struktur Modular (Refactor)
+
+Train & test **dipisah per model** untuk modularitas & kemudahan iterasi:
+
+| Fungsi | Tugas |
+| --- | --- |
+| `encode_for_rf(X_train, X_val, X_test)` | OrdinalEncoder untuk kategorikal RF |
+| `train_catboost(X_train, y_train, X_val, y_val)` | Train CatBoost dengan early stopping |
+| `train_random_forest(X_train_rf, y_train)` | Train Random Forest |
+| `evaluate_model(y_true, y_pred)` | Hitung R² / RMSE / MAE |
+| `test_catboost(model, X_test, y_test, X_val, y_val)` | Test CatBoost (Val + Test metrics) |
+| `test_random_forest(model, X_test_rf, y_test, X_val_rf, y_val)` | Test RF (Val + Test metrics) |
+| `cross_validate_models(...)` | 5-Fold CV R² untuk kedua model |
+| `phase3_train(...)` | Orchestrator yang memanggil semua di atas |
 
 #### [NEW] Section 3: Model Training & Comparison
 
@@ -545,6 +562,82 @@ shap_values = explainer.shap_values(X_test)  # shape: (N, n_features)
 
 ---
 
+### Phase 4b — Global SHAP (Random Forest)  ✅ Selesai *(BARU)*
+
+**Tujuan:** Bandingkan interpretasi SHAP antara CatBoost & RF — apakah temuan algorithm-specific atau cross-model agreement?
+
+**Setup:**
+
+- Sample test: **500** (RF SHAP ~9 menit untuk 300 trees, jauh lebih lambat dari CatBoost)
+- TreeExplainer pada `X_test_rf` (sudah di-encode OrdinalEncoder)
+
+**Checklist:**
+
+- [x] SHAP TreeExplainer untuk RF + compute SHAP values (530s, shape 500×27)
+- [x] Sanity check additivity: max diff = **0.000000** ✅ PASS
+- [x] Generate Summary + Bar plot RF → `outputs/shap_summary_beeswarm_rf.png`, `outputs/shap_bar_importance_rf.png`
+
+**Top-10 RF SHAP:**
+
+| Rank | Fitur | RF Mean \|SHAP\| | CatBoost Rank | Selisih Rank |
+| --- | --- | --- | --- | --- |
+| 1 | `sleep_quality_score` | 0.6878 | 1 | 0 ✅ |
+| 2 | `occupation` | 0.4393 | 2 | 0 ✅ |
+| 3 | **`work_hours_that_day`** | 0.1963 | (>10) | **+8** ⚠️ |
+| 4 | `sleep_duration_hrs` | 0.0710 | 3 | -1 |
+| 5 | `room_temperature_celsius` | 0.0327 | 4 | -1 |
+| 6 | `deep_sleep_percentage` | 0.0317 | 7 | +1 |
+| 7 | `wake_episodes_per_night` | 0.0301 | 6 | -1 |
+| 8 | `heart_rate_resting_bpm` | 0.0281 | 10 | +2 |
+| 9 | `bmi` | 0.0220 | (>10) | new |
+| 10 | `mental_health_condition` | 0.0206 | (>10) | new |
+
+> [!IMPORTANT]
+> **Perbedaan kunci RF vs CatBoost:** RF memberi `work_hours_that_day` peringkat #3 (SHAP 0.196), sementara CatBoost menggesernya keluar top-10. Kemungkinan: CatBoost mendeteksi bahwa `occupation` sudah mencakup informasi pola jam kerja (Lawyer/Driver/Doctor), sehingga `work_hours_that_day` jadi redundant. RF (tanpa native categorical handling) tidak menangkap interaksi ini sebaik CatBoost → tetap memberi bobot ke `work_hours` secara terpisah.
+
+**Output baru:**
+
+- `outputs/shap_summary_beeswarm_rf.png` (128 KB)
+- `outputs/shap_bar_importance_rf.png` (77 KB)
+- `outputs/_shap_data_rf.pkl` (0.2 MB) — SHAP cache RF
+
+---
+
+### Phase 4c — Cross-Model Stability (CatBoost vs RF)  ⚠️ Marginal *(BARU — Skenario 4)*
+
+**Tujuan:** Mengisi **Skenario 4** dari plan — verifikasi bahwa ranking importance konsisten antar 2 model berbeda. Kalau setuju → temuan algorithm-agnostic, lebih kredibel.
+
+**Checklist:**
+
+- [x] Hitung Kendall's Tau antara ranking SHAP CatBoost vs RF
+- [x] Bandingkan top-10 overlap kedua model
+- [x] Generate visualisasi: bar comparison + scatter rank correlation
+
+**Hasil:**
+
+| Metric | Nilai | Target | Status |
+| --- | --- | --- | --- |
+| Kendall's Tau (semua 27 fitur) | **0.5442** | ≥ 0.80 | ⚠️ MARGINAL |
+| p-value | 3.13e-05 | <0.05 | ✅ Highly significant |
+| Top-10 overlap | **7/10** | — | ✅ Strong |
+
+**Common top-10 (7 fitur):** `sleep_quality_score`, `occupation`, `sleep_duration_hrs`, `room_temperature_celsius`, `deep_sleep_percentage`, `wake_episodes_per_night`, `heart_rate_resting_bpm`
+
+**Hanya di CatBoost top-10:** `day_type`, `alcohol_units_before_bed`, `chronotype`
+**Hanya di RF top-10:** `work_hours_that_day`, `bmi`, `mental_health_condition`
+
+> [!WARNING]
+> **Skenario 4 status: MARGINAL.** Kendall's Tau 0.54 di bawah threshold 0.80, tapi top-10 overlap 7/10 menunjukkan agreement kuat di **fitur paling penting**. Perbedaan terjadi di tier menengah karena CatBoost handle kategorikal native (lebih baik mendeteksi interaksi `occupation` ↔ `work_hours`), sedangkan RF perlakukan `occupation` sebagai ordinal numeric setelah encoding.
+
+**Implikasi untuk findings:** Kedua model **setuju kuat** bahwa `sleep_quality_score` & `occupation` adalah 2 prediktor teratas. Insight utama tetap valid. Untuk paper/laporan, sebut "agreement on top-2 features (Kendall's Tau full=0.54, top-10 overlap=70%)" — lebih honest daripada klaim full agreement.
+
+**Output baru:**
+
+- `outputs/shap_cross_model_comparison.png` (57 KB) — side-by-side bar chart
+- `outputs/shap_cross_model_rank_scatter.png` (76 KB) — scatter rank correlation
+
+---
+
 ### Phase 5 — Individual Analysis  ✅ Selesai
 
 #### [NEW] Section 5: Individual SHAP Analysis
@@ -667,14 +760,16 @@ Untuk tiap kasus, buat penjelasan natural:
 - [x] Jalankan automated tests (data leakage, SHAP sanity, R² threshold, file existence) — **4/4 PASS**
 - [x] Tulis ringkasan findings & insight actionable → `outputs/summary.json`
 
-**Hasil Verification Tests (semua PASS):**
+**Hasil Verification Tests:**
 
 | # | Test | Hasil | Status |
 | --- | --- | --- | --- |
 | 1 | Data leakage guard (4 kolom) | `sleep_disorder_risk`, `cognitive_performance_score`, `felt_rested`, `person_id` semua absent | ✅ PASS |
-| 2 | SHAP sanity check | max \|SHAP_sum + base − pred\| = **0.00000000** | ✅ PASS |
+| 2a | SHAP sanity check (CatBoost) | max \|SHAP_sum + base − pred\| = **0.000000** | ✅ PASS |
+| 2b | SHAP sanity check (RF) *(BARU)* | max diff = **0.000000** | ✅ PASS |
 | 3 | R² ≥ 0.6 threshold | CatBoost test R² = **0.6456** | ✅ PASS |
-| 4 | 9 output visuals exist | semua file ada (model_comparison + 4 SHAP global + 3 waterfall + force_plot.html) | ✅ PASS |
+| 4 | Cross-Model Stability (Skenario 4) *(BARU)* | Kendall's Tau = 0.544, target ≥ 0.80 | ⚠️ MARGINAL |
+| 5 | 13 output visuals exist (9 plan + 4 baru) | semua file ada | ✅ PASS |
 
 **Final Summary (`outputs/summary.json`):**
 
@@ -691,10 +786,10 @@ Untuk tiap kasus, buat penjelasan natural:
 
 **Insight Actionable:**
 
-1. **Sleep quality is king** — `sleep_quality_score` adalah prediktor #1 dengan SHAP 4× lebih besar dari `sleep_duration_hrs`. Intervensi sebaiknya fokus ke **kualitas** tidur (lingkungan, rutinitas), bukan hanya kuantitas.
-2. **Occupation matters more than work_hours** — Pola pekerjaan (Lawyer vs Retired) memberi efek SHAP hingga ±2.2, jauh melebihi jam kerja itu sendiri. Untuk program corporate wellness, **profesi-spesifik** lebih efektif.
-3. **Lingkungan kamar tidur underrated** — `room_temperature_celsius` masuk top-5, sering diabaikan dibanding screen time/kafein. Suhu kamar 16-19°C optimal.
-4. **Model stabil & valid** — Kendall's Tau 0.896 antar 5 fold + SHAP sanity perfect → temuan bisa di-generalize, bukan artifact.
+1. **Sleep quality is king** — `sleep_quality_score` adalah prediktor #1 dengan SHAP 4× lebih besar dari `sleep_duration_hrs` di **kedua model** (CatBoost & RF setuju). Intervensi sebaiknya fokus ke **kualitas** tidur (lingkungan, rutinitas), bukan hanya kuantitas.
+2. **Occupation matters more than work_hours (di CatBoost)** — Pola pekerjaan (Lawyer vs Retired) memberi efek SHAP hingga ±2.2 di CatBoost, jauh melebihi jam kerja itu sendiri. RF memberi `work_hours` peringkat 3 (CatBoost menggesernya keluar top-10) — kemungkinan CatBoost melihat `occupation` sudah menyerap pola jam kerja per profesi (contoh non-linear interaction).
+3. **Lingkungan kamar tidur underrated** — `room_temperature_celsius` masuk top-5 di **kedua model**, sering diabaikan dibanding screen time/kafein. Suhu kamar 16-19°C optimal.
+4. **Findings algorithm-agnostic untuk top-tier features** — Top-10 overlap 7/10 antara CatBoost & RF, dengan top-2 (sleep_quality + occupation) identik → 2 fitur teratas bukan artifact algoritma. Tier menengah berbeda antar model — perlu kehati-hatian saat klaim ranking di luar top-2.
 
 **Output baru:**
 
